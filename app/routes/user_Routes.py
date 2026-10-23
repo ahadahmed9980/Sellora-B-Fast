@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status
 from app.schema.user_Schema import SignupRequest, UserResponse
 from app.models.user_Model import UserModel
@@ -24,13 +26,19 @@ async def register_user(payload: SignupRequest):
     userdata=user.model_dump()
     try:
         result = await users_collection.insert_one(userdata)
-        return UserResponse(
-            id=str(result.inserted_id),
-            email=user.email,
-            is_verified=user.is_verified,
+    except Exception as e:
+        logging.error(f"Database insertion failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create user in database"
         )
-    except:
-        raise HTTPException(status_code=401)
+    return UserResponse(
+        id=str(result.inserted_id),
+          name=user.name,
+        email=user.email,
+        is_verified=user.is_verified
+      
+    )
 
 
     

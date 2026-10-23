@@ -10,5 +10,9 @@ class UserModel(BaseModel):
     password_hash: str
     role: str = "owner"
     is_verified: bool = False
-    created_at: datetime.now
-    updated_at: datetime.now
+    created_at: datetime = Field(
+      default_factory=lambda: datetime.now(timezone.utc)
+  )
+    updated_at: datetime = Field(
+      default_factory=lambda: datetime.now(timezone.utc)
+  )

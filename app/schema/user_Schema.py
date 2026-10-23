@@ -22,7 +22,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: SecretStr = Field(min_length=8, max_length=128)
     confirm_password: SecretStr = Field(min_length=8, max_length=128)
-    role: str
+    role: str = Field(default="user")
     accept_terms: bool
     is_verified: bool = Field(default=False)
 

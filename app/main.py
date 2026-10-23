@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.database.redis import connect_redis, close_redis
 from app.database.mongo import create_indexes
-
+from app.routes.user_Routes import router as user_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,6 +17,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(user_router)
 
 
 @app.get("/")
