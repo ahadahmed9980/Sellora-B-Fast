@@ -4,6 +4,7 @@ from app.database.redis import connect_redis, close_redis
 from app.database.mongo import create_indexes
 from app.routes.user_Routes import router as user_router
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_redis()

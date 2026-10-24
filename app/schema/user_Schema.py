@@ -77,3 +77,21 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     is_verified: bool
+
+
+#  login user schema
+class SigninRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class UserSigninResponse(BaseModel):
+    id: str
+    email: EmailStr
+    token: TokenResponse
