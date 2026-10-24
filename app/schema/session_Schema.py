@@ -18,11 +18,8 @@ class SessionRequest(BaseModel):
     refresh_token_hash: str = Field(
         alias="RefreshTokenHash", description="RefreshToken hash"
     )
-    user_agent: Optional[str] = Field(
-        None,
-        alias="userAgent"
-    )
-    is_revoked: bool = Field(default=False, alias='isRevoked')
+    user_agent: Optional[str] = Field(None, alias="userAgent")
+    is_revoked: bool = Field(default=False, alias="isRevoked")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         alias="createdAt",
@@ -35,4 +32,3 @@ class SessionRequest(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
     )
-

@@ -1,9 +1,9 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, status
-from app.schema.user_Schema import SignupRequest, UserResponse
+from app.schema.user_Schema import SignupRequest, UserResponse , UserSigninResponse,SigninRequest
 from app.models.user_Model import UserModel
-from app.database.mongo import users_collection
+from app.database.mongo import users_collection,session_collection
 from app.utils.password import hash_password
 
 router = APIRouter(
@@ -43,3 +43,9 @@ async def register_user(payload: SignupRequest):
         email=user.email,
         is_verified=user.is_verified,
     )
+
+
+# login user routes
+@router.post('/login',response_model=UserSigninResponse,status_code=200)
+async def login_user(payload:SigninRequest):
+    
