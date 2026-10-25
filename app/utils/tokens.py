@@ -4,7 +4,8 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from app.config import JWT_ALGORITHM, JWT_SECRET
 
-#access token
+
+# access token
 def createAccessToken(user_id, session_id) -> str:
     payload = {
         "id": str(user_id),
@@ -14,7 +15,8 @@ def createAccessToken(user_id, session_id) -> str:
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-#createRefreshToken
+
+# createRefreshToken
 def createRefreshToken(user_id, session_id):
     payload = {
         "id": str(user_id),
@@ -28,13 +30,9 @@ def createRefreshToken(user_id, session_id):
         payload,
         JWT_SECRET,
         algorithm=JWT_ALGORITHM,
-    );
+    )
 
 
 # hash refresh token
-def refreshTokenHash(refreshToken:str)->str:
-    return hashlib.sha256(refreshToken.encode('utf8')).hexdigest()
-
-
-
-
+def refreshTokenHash(refreshToken: str) -> str:
+    return hashlib.sha256(refreshToken.encode("utf8")).hexdigest()

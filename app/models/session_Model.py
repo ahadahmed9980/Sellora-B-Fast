@@ -4,9 +4,9 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
-class sessionModel(BaseException):
+class sessionModel(BaseModel):
     user_id: str
-    refresh_token_hash: str
+    refresh_token_hash: Optional[str] = None
     ip: Optional[str] = None
     user_agent: Optional[str] = None
     is_revoked: bool = False

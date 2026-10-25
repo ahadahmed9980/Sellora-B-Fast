@@ -9,7 +9,7 @@ from app.routes.user_Routes import router as user_router
 async def lifespan(app: FastAPI):
     await connect_redis()
     print("FastAPI started!")
-    create_indexes()
+    await create_indexes()
 
     yield
 

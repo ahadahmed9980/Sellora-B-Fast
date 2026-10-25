@@ -15,7 +15,7 @@ from pydantic import (
 class SessionRequest(BaseModel):
     user_id: str = Field(..., alias="userId", description="user Id")
     ip: Optional[str] = Field(None, description="Client IP address")
-    refresh_token_hash: str = Field(
+    refresh_token_hash: Optional[str] = Field(None,
         alias="RefreshTokenHash", description="RefreshToken hash"
     )
     user_agent: Optional[str] = Field(None, alias="userAgent")
