@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone, timedelta
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Request
 from app.schema.user_Schema import (
     SignupRequest,
@@ -55,54 +56,79 @@ async def register_user(payload: SignupRequest):
 
 # login user routes
 @router.post("/login", response_model=UserSigninResponse, status_code=200)
+@router.post("/login", response_model=UserSigninResponse, status_code=200)
 async def login_user(payload: SigninRequest, request: Request):
     email = str(payload.email).lower()
     user = await users_collection.find_one({"email": email})
+    
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
         )
+        
     if not confirm_Password(
-        plain_password=payload.password, hash_password=user["password_hash"]
+        plain_password=payload.password, 
+        hash_password=user.get("password_hash")
     ):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
         )
+        
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
-    expire = datetime.now(timezone.utc) + timedelta(days=7)
+    expire_time = datetime.now(timezone.utc) + timedelta(days=7)
+
     try:
+        # 1. Pehle ObjectId generate karein taake update query ki zaroorat na paray
+        new_session_id = ObjectId()
+        session_id_str = str(new_session_id)
+
+        # 2. Tokens generate karein
+        access_token = createAccessToken(
+            user_id=str(user["_id"]), 
+            session_id=session_id_str
+        )
+        refresh_token = createRefreshToken(
+            user_id=str(user["_id"]), 
+            session_id=session_id_str
+        )
+
+        # 3. Model tayyar karein mukammal data ke sath
         new_session = sessionModel(
             user_id=str(user["_id"]),
             ip=client_ip,
             user_agent=user_agent,
-            refresh_token_hash=None,
+            refresh_token_hash=refreshTokenHash(refresh_token),
+            expires_at=expire_time,
             revoked_at=None,
             is_revoked=False,
         )
-        session_result = await session_collection.insert_one(new_session.model_dump())
-        session_id = str(session_result.inserted_id)
-        access_token = createAccessToken(
-            user_id=str(user["_id"]), session_id=session_id
-        )
-        refresh_token = createRefreshToken(
-            user_id=str(user["_id"]), session_id=session_id
-        )
-        await session_collection.update_one(
-            {"_id": session_result.inserted_id},
-            {"$set": {"refresh_token_hash": refreshTokenHash(refresh_token)}},
-        )
-        # creating token object
+
+        # 4. Dictionary bana kar custom _id set karein aur insert karein (Single DB Hit)
+        session_doc = new_session.model_dump()
+        session_doc["_id"] = new_session_id
+        await session_collection.insert_one(session_doc)
+
+        # 5. Token object aur response tayyar karein
         token_obj = TokenResponse(
-            access_token=access_token, refresh_token=refresh_token, token_type="bearer"
+            access_token=access_token, 
+            refresh_token=refresh_token, 
+            token_type="bearer"
         )
-        response_data = UserSigninResponse(
-            id=str(user["_id"]), email=user["email"], token=token_obj
+        
+        return UserSigninResponse(
+            id=str(user["_id"]), 
+            email=user["email"], 
+            token=token_obj
         )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logging.error(f"Sign in error: {e}")
+        logging.error(f"Sign in error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch user from database",
+            detail="Failed to process sign in request",
         )
-    return response_data
