@@ -60,22 +60,19 @@ async def register_user(payload: SignupRequest):
 async def login_user(payload: SigninRequest, request: Request):
     email = str(payload.email).lower()
     user = await users_collection.find_one({"email": email})
-    
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
-        
+
     if not confirm_Password(
-        plain_password=payload.password, 
-        hash_password=user.get("password_hash")
+        plain_password=payload.password, hash_password=user.get("password_hash")
     ):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
-        
+
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
     expire_time = datetime.now(timezone.utc) + timedelta(days=7)
@@ -87,12 +84,10 @@ async def login_user(payload: SigninRequest, request: Request):
 
         # 2. Tokens generate karein
         access_token = createAccessToken(
-            user_id=str(user["_id"]), 
-            session_id=session_id_str
+            user_id=str(user["_id"]), session_id=session_id_str
         )
         refresh_token = createRefreshToken(
-            user_id=str(user["_id"]), 
-            session_id=session_id_str
+            user_id=str(user["_id"]), session_id=session_id_str
         )
 
         # 3. Model tayyar karein mukammal data ke sath
@@ -113,15 +108,11 @@ async def login_user(payload: SigninRequest, request: Request):
 
         # 5. Token object aur response tayyar karein
         token_obj = TokenResponse(
-            access_token=access_token, 
-            refresh_token=refresh_token, 
-            token_type="bearer"
+            access_token=access_token, refresh_token=refresh_token, token_type="bearer"
         )
-        
+
         return UserSigninResponse(
-            id=str(user["_id"]), 
-            email=user["email"], 
-            token=token_obj
+            id=str(user["_id"]), email=user["email"], token=token_obj
         )
 
     except HTTPException:
