@@ -14,6 +14,8 @@ from app.models.session_Model import sessionModel
 from app.database.mongo import users_collection, session_collection
 from app.utils.password import hash_password, confirm_Password
 from app.utils.tokens import createAccessToken, createRefreshToken, refreshTokenHash
+from app.database.redis import redis_client
+REFRESH_TOKEN_EXPIRE_SECONDS = 7 * 24 * 60 * 60  # 7 Days
 
 router = APIRouter(
     prefix="/api/auth",
@@ -26,7 +28,7 @@ router = APIRouter(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
 async def register_user(payload: SignupRequest):
-    email = str(payload.email).lower()
+    email = str(payload.email).lower().strip()
     isExist = await users_collection.find_one({"email": email})
     if isExist:
         raise HTTPException(
@@ -56,9 +58,8 @@ async def register_user(payload: SignupRequest):
 
 # login user routes
 @router.post("/login", response_model=UserSigninResponse, status_code=200)
-@router.post("/login", response_model=UserSigninResponse, status_code=200)
 async def login_user(payload: SigninRequest, request: Request):
-    email = str(payload.email).lower()
+    email = str(payload.email).lower().strip()
     user = await users_collection.find_one({"email": email})
 
     if not user:
@@ -78,11 +79,10 @@ async def login_user(payload: SigninRequest, request: Request):
     expire_time = datetime.now(timezone.utc) + timedelta(days=7)
 
     try:
-        # 1. Pehle ObjectId generate karein taake update query ki zaroorat na paray
         new_session_id = ObjectId()
         session_id_str = str(new_session_id)
 
-        # 2. Tokens generate karein
+        # 2. Tokens generate
         access_token = createAccessToken(
             user_id=str(user["_id"]), session_id=session_id_str
         )
@@ -90,7 +90,6 @@ async def login_user(payload: SigninRequest, request: Request):
             user_id=str(user["_id"]), session_id=session_id_str
         )
 
-        # 3. Model tayyar karein mukammal data ke sath
         new_session = sessionModel(
             user_id=str(user["_id"]),
             ip=client_ip,
@@ -101,12 +100,21 @@ async def login_user(payload: SigninRequest, request: Request):
             is_revoked=False,
         )
 
-        # 4. Dictionary bana kar custom _id set karein aur insert karein (Single DB Hit)
         session_doc = new_session.model_dump()
         session_doc["_id"] = new_session_id
         await session_collection.insert_one(session_doc)
+        # now save session in redis 
+        redis_session_key = f'session:{session_id_str}'
+        redis_session_data = {
+            "userId": str(user["_id"]),
+            "refreshTokenHash": refreshTokenHash,
+            "is_revoked": "0",
+        }
+        async with redis_client.pipeline(transaction=True) as pipe:
+            pipe.hset(redis_session_key, mapping=redis_session_data)
+            pipe.expire(redis_session_key, REFRESH_TOKEN_EXPIRE_SECONDS)
+            await pipe.execute()
 
-        # 5. Token object aur response tayyar karein
         token_obj = TokenResponse(
             access_token=access_token, refresh_token=refresh_token, token_type="bearer"
         )

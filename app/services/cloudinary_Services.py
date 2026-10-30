@@ -1,4 +1,3 @@
-
 import io
 
 import cloudinary
@@ -9,7 +8,6 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 
-
 # cloudinary config
 cloudinary.config(
     ccloud_name=CLOUDINARY_CLOUD_NAME,
@@ -17,16 +15,13 @@ cloudinary.config(
     api_secret=CLOUDINARY_API_SECRET,
     secure=True,
 )
-MAX_FILE_SIZE = 5* 1024 * 1024
+MAX_FILE_SIZE = 5 * 1024 * 1024
 max_image_pixel = 25_000_000
 MAX_DIMENSION = 1200
 
-allowed_format = { 'JPEG','PNG', 'WEBP'}
-allowed_content_type = {
-    'image/jpeg',
-    'image/png',
-    'image/webp'
-}
+allowed_format = {"JPEG", "PNG", "WEBP"}
+allowed_content_type = {"image/jpeg", "image/png", "image/webp"}
+
 
 def _process_and_upload(image_bytes: bytes) -> dict:
     """Image ko resize, compress aur upload karta hai."""
@@ -78,14 +73,9 @@ async def upload_image(image: UploadFile) -> dict:
 
     # 3. Size check (5 MB limit)
     if len(image_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="Image 5 MB se bari nahi honi chahiye.")
+        raise HTTPException(
+            status_code=413, detail="Image 5 MB se bari nahi honi chahiye."
+        )
 
     # 4. Background thread mein process aur upload karein
     return await run_in_threadpool(_process_and_upload, image_bytes)
-            
-
-
-
-
-
-

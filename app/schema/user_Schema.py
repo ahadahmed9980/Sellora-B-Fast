@@ -95,3 +95,16 @@ class UserSigninResponse(BaseModel):
     id: str
     email: EmailStr
     token: TokenResponse
+
+
+# rotate refresh token
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = None
+
+
+class RefreshResponse(BaseModel):
+    message: str
+    accessToken: str
+    refreshToken: str
