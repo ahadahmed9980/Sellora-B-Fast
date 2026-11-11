@@ -4,11 +4,9 @@ from datetime import datetime, timezone
 from pydantic import (
     BaseModel,
     ConfigDict,
-    EmailStr,
+
     Field,
-    SecretStr,
-    field_validator,
-    model_validator,
+
 )
 
 

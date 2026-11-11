@@ -111,7 +111,7 @@ async def login_user(payload: SigninRequest, request: Request, response: Respons
             refresh_token_hash=refreshTokenHash(refresh_token),
             expires_at=expire_time,
             revoked_at=None,
-            is_revoked=False,
+            is_revoked=0,
         )
 
         session_doc = new_session.model_dump()
@@ -167,12 +167,21 @@ async def rotate(
 ):
     incomming_token = (
         (data.refresh_token if data else None)
-        or refresh_cookie
         or (
             authorization[7:].strip()
             if authorization and authorization.lower().startswith("bearer ")
             else None
         )
+        or refresh_cookie
+    )
+    print("BODY TOKEN:", bool(data and data.refresh_token))
+    print("COOKIE TOKEN:", bool(refresh_cookie))
+    print("AUTH TOKEN:", bool(authorization))
+    print(
+        "TOKEN SOURCE:",
+        "body" if data and data.refresh_token
+        else "cookie" if refresh_cookie
+        else "authorization",
     )
     if not incomming_token:
         raise HTTPException (status_code=401, detail='Refresh Token required')
@@ -189,29 +198,112 @@ async def rotate(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
-    # checking redis for verify session  and user 
-    incomming_hash = refreshTokenHash(incomming_token)
-    redis_session_key = f'session:{session_id}'
-    redis_session = await redis_client.hgetall(redis_session_key)
-    if redis_session :
-        print('redis hit ')
-        # redis session validation 
-        if redis_session.get('userId') != user_id:
-            raise HTTPException(401, 'invalid session')
-        if redis_session.get("is_revoked") != "0":
-            raise HTTPException(401, "Session revoked")
+    # Check Redis to verify the session and user.
+    try:
+        incomming_hash = refreshTokenHash(incomming_token)
+        redis_session_key = f"session:{session_id}"
+        redis_session = await redis_client.hgetall(redis_session_key)
 
-        if redis_session.get("refreshTokenHash") != incomming_hash:
-            raise HTTPException(401, "Invalid refresh token")
-    else:
-        print('redis miss ho gaya')
-        user = await users_collection.find_one({
-            "_id": user_id
-        })
+        if redis_session:
+            
+            if redis_session.get("userId") != str(user_id):
+                raise HTTPException(401, "Invalid session")
+            if redis_session.get("is_revoked") != "0":
+                raise HTTPException(401, "Session revoked")
+            if redis_session.get("refreshTokenHash") != incomming_hash:
+                raise HTTPException(401, "Invalid refresh token")
+        else:
+            user = await users_collection.find_one({"_id": user_id})
+            session = await session_collection.find_one({"_id": session_id})
 
-        session = await session_collection.find_one({
-            "_id": session_id,
-        })
+            if not user or not session:
+                raise HTTPException(401, "Invalid session or user")
+            if session.get("is_revoked") == "1":
+                raise HTTPException(401, "Session revoked")
+            if session["expires_at"] <= datetime.now(timezone.utc):
+                raise HTTPException(401, "Session expired")
+            if session.get("refresh_token_hash") != incomming_hash:
+                raise HTTPException(401, "Invalid refresh token")
+
+        new_access_token = createAccessToken(
+            user_id=str(user_id), session_id=str(session_id)
+        )
+        new_refresh_token = createRefreshToken(
+            user_id=str(user_id), session_id=str(session_id)
+        )
+        new_refresh_hash = refreshTokenHash(new_refresh_token)
+
+        now = datetime.now(timezone.utc)
+
+        update_result = await session_collection.update_one(
+            {
+                "_id": session_id,
+                "user_id": str(user_id),
+                "refresh_token_hash": incomming_hash,
+                "is_revoked": False,
+                "expires_at": {"$gt": now},
+            },
+            {
+                "$set": {
+                    "refresh_token_hash": new_refresh_hash,
+                    "expires_at": now + timedelta(days=7),
+                }
+            },
+        )
+
+        if update_result.matched_count != 1:
+            raise HTTPException(
+                status_code=401,
+                detail="Refresh token already used or session invalid",
+            )
+
+        async with redis_client.pipeline(transaction=True) as pipe:
+            pipe.hset(
+                redis_session_key,
+                mapping={
+                    "userId": str(user_id),
+                    "refreshTokenHash": new_refresh_hash,
+                    "is_revoked": "0",
+                },
+            )
+            pipe.expire(redis_session_key, REFRESH_TOKEN_EXPIRE_SECONDS)
+            await pipe.execute()
+
+            token_obj = TokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+        )
+            response.set_cookie(
+            key="refreshToken",
+            value=new_refresh_token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=REFRESH_TOKEN_EXPIRE_SECONDS,
+            path="/",
+        )
+        return RefreshResponse(
+    message="Token refreshed successfully",
+    accessToken=new_access_token,
+    refreshToken=new_refresh_token,
+)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Rotate error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process rotate request",
+        )
+        
+            
+   
+
+
+        
+        
+
 
 
    
