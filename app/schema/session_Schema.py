@@ -4,9 +4,7 @@ from datetime import datetime, timezone
 from pydantic import (
     BaseModel,
     ConfigDict,
-
     Field,
-
 )
 
 
@@ -17,7 +15,7 @@ class SessionRequest(BaseModel):
         None, alias="RefreshTokenHash", description="RefreshToken hash"
     )
     user_agent: Optional[str] = Field(None, alias="userAgent")
-    is_revoked: str = Field(default='0', alias="isRevoked")
+    is_revoked: str = Field(default="0", alias="isRevoked")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         alias="createdAt",

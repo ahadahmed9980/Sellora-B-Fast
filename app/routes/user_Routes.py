@@ -123,6 +123,8 @@ async def login_user(payload: SigninRequest, request: Request, response: Respons
             "userId": str(user["_id"]),
             "refreshTokenHash": refreshTokenHash(refresh_token),
             "is_revoked": "0",
+            "name": user["name"],
+            "email": user["email"],
         }
         async with redis_client.pipeline(transaction=True) as pipe:
             pipe.hset(redis_session_key, mapping=redis_session_data)
@@ -176,13 +178,13 @@ async def rotate(
     )
 
     if not incomming_token:
-        raise HTTPException (status_code=401, detail='Refresh Token required')
+        raise HTTPException(status_code=401, detail="Refresh Token required")
     try:
-        decoded = jwt.decode(incomming_token,JWT_SECRET,algorithms=[JWT_ALGORITHM])
-        if decoded.get('type') !='refresh':
-            raise HTTPException(status_code=401, detail='Invalid token')
-        user_id = ObjectId(decoded['id'])
-        session_id = ObjectId(decoded['sessionId'])
+        decoded = jwt.decode(incomming_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if decoded.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = ObjectId(decoded["id"])
+        session_id = ObjectId(decoded["sessionId"])
     except HTTPException:
         raise
     except (jwt.InvalidTokenError, KeyError, TypeError):
@@ -192,14 +194,14 @@ async def rotate(
         )
     # Check Redis to verify the session and user.
     try:
-        now = datetime.now(timezone.utc) 
+        now = datetime.now(timezone.utc)
         incomming_hash = refreshTokenHash(incomming_token)
         redis_session_key = f"session:{session_id}"
         redis_session = await redis_client.hgetall(redis_session_key)
 
         if redis_session:
             print("REDIS SESSION FOUND redis hit:", redis_session)
-            
+
             if redis_session.get("userId") != str(user_id):
                 raise HTTPException(401, "Invalid session")
             if redis_session.get("is_revoked") != "0":
@@ -210,7 +212,6 @@ async def rotate(
             print("REDIS SESSION NOT FOUND redis miss, checking MongoDB")
             user = await users_collection.find_one({"_id": user_id})
             session = await session_collection.find_one({"_id": session_id})
-            
 
             if not user or not session:
                 raise HTTPException(401, "Invalid session or user")
@@ -228,8 +229,6 @@ async def rotate(
             user_id=str(user_id), session_id=str(session_id)
         )
         new_refresh_hash = refreshTokenHash(new_refresh_token)
-
-
 
         update_result = await session_collection.update_one(
             {
@@ -261,6 +260,8 @@ async def rotate(
                     "userId": str(user_id),
                     "refreshTokenHash": new_refresh_hash,
                     "is_revoked": "0",
+                    "name": user["name"],
+                    "email": user["email"],
                 },
             )
             pipe.expire(redis_session_key, REFRESH_TOKEN_EXPIRE_SECONDS)
@@ -289,14 +290,3 @@ async def rotate(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process rotate request",
         )
-        
-            
-   
-
-
-        
-        
-
-
-
-   
