@@ -32,9 +32,11 @@ async def get_current_user(request: Request):
         decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
 
         user_id = ObjectId(decoded["id"])
-        session_id = ObjectId(decoded["sessionId"])
+        session_id = ObjectId(decoded["session_id"])
 
-    except (InvalidTokenError, InvalidId, KeyError, TypeError, ValueError):
+    except (InvalidTokenError, InvalidId, KeyError, TypeError, ValueError) as e:
+        print("TOKEN ERROR TYPE:", type(e).__name__)
+        print("TOKEN ERROR MESSAGE:", str(e))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired access token",

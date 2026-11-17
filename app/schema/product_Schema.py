@@ -1,18 +1,10 @@
-import re
-from typing import Self
+
 from enum import Enum
-
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    SecretStr,
-    field_validator,
-    model_validator,
-)
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
 
-# fixed cate
 class ProductCategory(str, Enum):
     GROCERY = "grocery"
     BAKERY = "bakery"
@@ -29,17 +21,52 @@ class UnitOfMeasurement(str, Enum):
     DOZEN = "dozen"
 
 
-# create product
+
+from typing import Self
+
+from fastapi import Form
+from pydantic import BaseModel, ConfigDict, Field
+
+
 class CreateProductSchema(BaseModel):
+
     model_config = ConfigDict(str_strip_whitespace=True)
-    # product image
-    imageUrl: str | None = None
+
     name: str = Field(min_length=2, max_length=100)
     category: ProductCategory
     sku: str = Field(min_length=1, max_length=50)
     barcode: str = Field(min_length=1, max_length=100)
-    bying_price: float = Field(gt=0)
+
+    buying_price: float = Field(gt=0)
     selling_price: float = Field(gt=0)
+
     unit: UnitOfMeasurement
     current_stock: float = Field(ge=0)
     low_stock_alert: float = Field(ge=0)
+    @classmethod
+    def as_form(
+    cls,
+    name: str = Form(...),
+    category: ProductCategory = Form(...),
+    sku: str = Form(...),
+    barcode: str = Form(...),
+    buying_price: float = Form(...),
+    selling_price: float = Form(...),
+    unit: UnitOfMeasurement = Form(...),
+    current_stock: float = Form(...),
+    low_stock_alert: float = Form(...),
+) -> Self:
+        try:
+            return cls(
+                name=name,
+                category=category,
+                sku=sku,
+                barcode=barcode,
+                buying_price=buying_price,
+                selling_price=selling_price,
+                unit=unit,
+                current_stock=current_stock,
+                low_stock_alert=low_stock_alert,
+            )
+        except ValidationError as exc:
+            raise RequestValidationError(exc.errors()) from exc
