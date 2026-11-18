@@ -130,5 +130,20 @@ async def create_product(
 
     }
 
-# @router.get("/products", status_code=status.HTTP_200_OK):
-# async def get_products(current_user: dict = Depends(get_current_user)):
+@router.get("/my-products", status_code=status.HTTP_200_OK)
+async def get_products(page : int = 1 , limit : int = 10 ,
+        current_user: dict = Depends(get_current_user)):
+    user_id = str(current_user["_id"])
+    skip = (page - 1) * limit
+    products = await products_collection.find({"user_id": user_id}).skip(skip).limit(limit).to_list(length=limit)
+    total_products = await products_collection.count_documents({"user_id": user_id})
+    for product in products:
+        product['_id'] = str(product['_id'])
+    return {
+        "success": True,
+        "total_products": total_products,
+        "current_page": page,
+        "limit": limit,
+        "total_pages": (total_products + limit - 1) // limit,
+        "products": products
+    }
