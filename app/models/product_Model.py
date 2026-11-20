@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 from datetime import datetime, timezone
 
@@ -26,3 +26,4 @@ class ProductModel(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+

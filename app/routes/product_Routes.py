@@ -210,3 +210,4 @@ async def search_product(sku:str = Query(...,min_length=1)
             detail=f"Failed to search product: {str(exc)}",
         ) from exc
 
+# sale product 

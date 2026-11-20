@@ -3,6 +3,10 @@ from enum import Enum
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError , field_validator
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+
+from fastapi import Form
+from pydantic import BaseModel, ConfigDict, Field
 
 
 
@@ -20,15 +24,6 @@ class UnitOfMeasurement(str, Enum):
     ML = "ml"
     PACK = "pack"
     DOZEN = "dozen"
-
-
-
-from typing import Self
-
-from fastapi import Form
-from pydantic import BaseModel, ConfigDict, Field
-
-
 class CreateProductSchema(BaseModel):
 
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -79,3 +74,4 @@ class CreateProductSchema(BaseModel):
             )
         except ValidationError as exc:
             raise RequestValidationError(exc.errors()) from exc
+
