@@ -23,11 +23,13 @@ async def create_indexes():
     )
     # Products index: barcode search
     await products_collection.create_index(
-        [
-            ("user_id", ASCENDING),
-            ("basic_details.barcode", ASCENDING),
-        ],
-        unique=True,
-        partialFilterExpression={"basic_details.barcode": {"$type": "string"}},
-        name="unique_user_barcode_idx",
-    )
+    [
+        ("user_id", ASCENDING),
+        ("basic_details.sku", ASCENDING),
+    ],
+    unique=True,
+    partialFilterExpression={
+        "basic_details.sku": {"$type": "string"}
+    },
+    name="unique_user_sku_idx",
+)

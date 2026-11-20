@@ -1,4 +1,5 @@
 
+import json
 import logging
 
 from fastapi import (
@@ -7,9 +8,10 @@ from fastapi import (
     UploadFile,
     File,
     HTTPException,
-    status,
+    status,Query
 )
-
+from redis.exceptions import RedisError
+from app.database.redis import redis_client
 from pymongo.errors import DuplicateKeyError
 
 from app.middleware.auth_Middleware import get_current_user
@@ -126,7 +128,9 @@ async def create_product(
 
         "message": "Product created successfully",
 
-        "product_id": str(result.inserted_id)
+        "product_id": str(result.inserted_id),
+        "sku": payload.sku,
+        "barcode": payload.barcode
 
     }
 
@@ -147,3 +151,62 @@ async def get_products(page : int = 1 , limit : int = 10 ,
         "total_pages": (total_products + limit - 1) // limit,
         "products": products
     }
+
+# search product by sku 
+@router.get('/search',status_code =status.HTTP_200_OK)
+async def search_product(sku:str = Query(...,min_length=1)
+                         , current_user:dict = Depends(get_current_user)):
+    user_id = str(current_user['_id'])
+    clean_sku = sku.strip().lower()
+    # redis key
+    cache_key = f'product:{user_id}:{clean_sku}'
+    #redis check 
+    try:
+        # 1. Redis check (agar Redis down ho to API crash na ho)
+        try:
+            cached_product = await redis_client.get(cache_key)
+            if cached_product is not None:  # Pehle yahan cache_key likha tha
+                return {
+                    "success": True,
+                    "source": "redis",
+                    "product": json.loads(cached_product),
+                }
+        except RedisError as redis_err:
+            print(f"Redis GET error: {redis_err}")
+
+        # 2. Cache miss -> MongoDB se search karein
+        product = await products_collection.find_one({
+            "user_id": user_id,
+            "sku": clean_sku,
+        })
+
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Product not found",
+            )
+
+        # ObjectId ko string mein convert karein
+        product["_id"] = str(product["_id"])
+
+        # 3. Redis mein 2 ghante (7200 sec) ke liye save karein
+        try:
+            await redis_client.setex(cache_key, 7200, json.dumps(product, default=str))
+        except RedisError as redis_err:
+            print(f"Redis SETEX error: {redis_err}")
+
+        return {
+            "success": True,
+            "source": "mongodb",
+            "product": product,
+        }
+
+    except HTTPException:
+        # 404 waghera ko as-is aage bhej dein taake 500 mein convert na ho
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to search product: {str(exc)}",
+        ) from exc
+

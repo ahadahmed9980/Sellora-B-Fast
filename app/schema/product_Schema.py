@@ -1,8 +1,9 @@
 
 from enum import Enum
 from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
+from pydantic import ValidationError , field_validator
 from pydantic import BaseModel, ConfigDict, Field
+
 
 
 class ProductCategory(str, Enum):
@@ -43,6 +44,14 @@ class CreateProductSchema(BaseModel):
     unit: UnitOfMeasurement
     current_stock: float = Field(ge=0)
     low_stock_alert: float = Field(ge=0)
+
+    @field_validator("sku")
+    @classmethod
+    def lowercase_sku(cls, value: str) -> str:
+        return value.lower()
+
+
+
     @classmethod
     def as_form(
     cls,
