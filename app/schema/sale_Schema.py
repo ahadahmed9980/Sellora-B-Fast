@@ -11,7 +11,7 @@ from typing import Self
 from fastapi import Form
 from pydantic import BaseModel, ConfigDict, Field
 
-class SaleItemSchema(BaseException):
+class SaleItemSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     sku:str = Field(min_length=1, max_length=50)
@@ -41,7 +41,7 @@ class CustomerSchema(BaseModel):
             raise ValueError("Phone number must be between 10 and 15 digits")
         return value
 
-class CreateSchema(BaseModel):
+class CreateSaleSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
 

@@ -4,6 +4,7 @@ from app.database.redis import connect_redis, close_redis
 from app.database.mongo import create_indexes
 from app.routes.user_Routes import router as user_router
 from app.routes.product_Routes import router as product_router
+from app.routes.sale_Routes import router as sale_router
 
 
 @asynccontextmanager
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(user_router)
 app.include_router(product_router)
+app.include_router(sale_router)
+
 
 
 @app.get("/")
